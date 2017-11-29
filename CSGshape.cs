@@ -5,7 +5,8 @@ using System;
 
 public class CSGshape {
     private const float smallDelta = .0001f;
-    private List<CSGsegment> segments;
+    private const float largePositive = 100000;
+    public List<CSGsegment> segments;
     public CSGshape(List<Vector2> points)
     {
         segments = new List<CSGsegment>();
@@ -29,12 +30,29 @@ public class CSGshape {
     }
     private bool isPointInside(Vector2 point)
     {
-        throw new NotImplementedException();
+        var collisionLine = new CSGsegment(point, new Vector2(largePositive, point.y));
+        int counter = 0;
+        foreach (var i in this.segments)
+        {
+            if (collisionLine.doesIntersect(i))
+            {
+                counter++;
+            }
+        }
+        return counter % 2 == 1;//odd number of intersections? then it is inside the shape
     }
     //external segments must ALWAYS be in order
     private List<CSGsegment> getExternalSegments(CSGshape other)
     {
-        throw new NotImplementedException();
+        var retr = new List<CSGsegment>();
+        foreach (var i in this.segments)
+        {
+            if (other.isPointInside(i.start))
+            {
+                retr.Add(i);
+            }
+        }
+        return retr;
     }
     //make sure to only wiggle a little bit, according to some small constant 
     public bool getDirection(CSGsegment seg,bool isEntering,Vector2 intersectionPoint)
@@ -128,13 +146,61 @@ public class CSGsegment
     //returns a list of the segments of the path and then the segment on the other shape which ended the path, also ends when it reaches the start
     public Tuple<List<CSGsegment>,CSGsegment> ridePathUntilIntersection(CSGshape shapeToRide,List<CSGsegment> externalSegments,bool isMovingForward,CSGsegment first)
     {
-        //the tuple.second is null if it reached the "first" element
-        throw new NotImplementedException();
+        var retr = new Tuple<List<CSGsegment>, CSGsegment>();
+        var curr = this;
+        var retrList = new List<CSGsegment>();
+        retr.first = retrList;
+        while (curr != first)
+        {
+            retrList.Add(curr);
+            var intersection = curr.getClosestIntersectingSegment(shapeToRide, isMovingForward);
+            if (intersection == null)
+            {
+                curr = curr.next(isMovingForward);
+            } else
+            {
+                retr.second = intersection;
+                return retr; 
+            }
+        }
+        return null;
     }
-    //note: endpoints shouldn't count as intersections. Double check
+
+    ///not my code
+    private bool onSegment(Vector2 p, Vector2 q, Vector2 r)
+    {
+        if (q.x <= Math.Max(p.x, r.x) && q.x >= Math.Min(p.x, r.x) &&
+            q.y <= Math.Max(p.y, r.y) && q.y >= Math.Min(p.y, r.y))
+            return true;
+
+        return false;
+    }
+    private float orientation(Vector2 p, Vector2 q, Vector2 r)
+    {
+        float val = (q.y - p.y) * (r.x - q.x) -
+                  (q.x - p.x) * (r.y - q.y);
+        if (val == 0) return 0; 
+        return (val > 0) ? 1 : 2; // clock or counterclock wise
+    }
+    private bool doIntersect(Vector2 p1, Vector2 q1, Vector2 p2, Vector2 q2)
+    {
+        float o1 = orientation(p1, q1, p2);
+        float o2 = orientation(p1, q1, q2);
+        float o3 = orientation(p2, q2, p1);
+        float o4 = orientation(p2, q2, q1);
+        if (o1 != o2 && o3 != o4)
+            return true;
+        if (o1 == 0 && onSegment(p1, p2, q1)) return true;
+        if (o2 == 0 && onSegment(p1, q2, q1)) return true;
+        if (o3 == 0 && onSegment(p2, p1, q2)) return true;
+        if (o4 == 0 && onSegment(p2, q1, q2)) return true;
+        return false;
+    }
+    ///end of not my code
+
     public bool doesIntersect(CSGsegment other)
     {
-        throw new NotImplementedException();
+        return doIntersect(this.start,this.end,other.start,other.end);
     }
 
     public CSGsegment next(bool isMovingForward)
@@ -162,15 +228,46 @@ public class CSGsegment
         }
     }
 
-    public Vector2 intersectionPoint(CSGsegment other)
+    public float getSlope()
     {
-        throw new NotImplementedException();
+        return (end.y - start.y) / (end.x-start.x);
+    }
+
+    public float getYInter()
+    {
+        return start.y - getSlope() * start.x;
+    }
+
+    public Vector2 intersectionPoint(CSGsegment other)//can optimize by removing redundant slope&yinter calculations
+    {
+        var x = (this.getYInter() - other.getYInter()) / (other.getSlope()-this.getSlope());
+        return new Vector2(x,x*this.getSlope()+this.getYInter());
     }
 
     //returns null for no intersection
-    public CSGsegment getClosestIntersectingSegment(CSGshape shape)
+    public CSGsegment getClosestIntersectingSegment(CSGshape shape, bool isMovingForward)
     {
-        throw new NotImplementedException();
+        var candidates = new List<CSGsegment>();
+        foreach (var i in shape.segments)
+        {
+            if (i.doesIntersect(this))
+            {
+                candidates.Add(i);
+            }
+        }
+        float currBestDist = float.PositiveInfinity;
+        CSGsegment currBest = null;
+        foreach (var i in candidates)
+        {
+            var point = i.intersectionPoint(this);
+            var dist = (this.getPoint(isMovingForward) - point).magnitude;
+            if (dist < currBestDist)
+            {
+                currBestDist = dist;
+                currBest = i;
+            }
+        }
+        return currBest;
     }
 }
 
