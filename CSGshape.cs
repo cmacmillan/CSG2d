@@ -153,6 +153,10 @@ public class CSGsegment
         while (curr != first)
         {
             retrList.Add(curr);
+            if (externalSegments.Contains(curr))//slow linear search
+            {
+                externalSegments.Remove(curr);
+            }
             var intersection = curr.getClosestIntersectingSegment(shapeToRide, isMovingForward);
             if (intersection == null)
             {
