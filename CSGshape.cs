@@ -2,16 +2,17 @@
 using System.Collections;
 using System.Collections.Generic;
 using System;
+using UnityEngine.Assertions;
 
 public class CSGshape {
     private const float smallDelta = .0001f;
-    private const float largePositive = 100000;
+    private const float largePositive = 100;
     public List<CSGsegment> segments;
     public CSGshape(List<Vector2> points)
     {
         segments = new List<CSGsegment>();
         CSGsegment lastSegment = null;
-        Vector2 prev = points[points.Count];
+        Vector2 prev = points[points.Count-1];
         foreach(var i in points)
         {
             var currSegment = new CSGsegment(prev, i);
@@ -47,7 +48,7 @@ public class CSGshape {
         var retr = new List<CSGsegment>();
         foreach (var i in this.segments)
         {
-            if (other.isPointInside(i.start))
+            if (!other.isPointInside(i.start))
             {
                 retr.Add(i);
             }
@@ -82,6 +83,7 @@ public class CSGshape {
         //start with a point on me thats not in the other shape
         List<CSGshape> retr = new List<CSGshape>();
         List<CSGsegment> externalSegments = getExternalSegments(other);
+        Assert.IsTrue(externalSegments.Count == 3);
         if (externalSegments.Count == 0)//other completely surrounds this
         {
             return retr;
@@ -96,10 +98,12 @@ public class CSGshape {
                 bool isMovingForward = true;
                 var first = externalSegments[0];//better to remove at start or end? look this up
                 var curr = first;
+                var isStart = true;
                 externalSegments.RemoveAt(0);
                 while (true)
                 {
-                    var partialPath = curr.ridePathUntilIntersection(other, externalSegments, isMovingForward, first);
+                    var partialPath = curr.ridePathUntilIntersection(other, externalSegments, isMovingForward, first,isStart);
+                    isStart = false;
                     foreach (var i in partialPath.first)
                     {
                         newPoints.Add(i.getPoint(isMovingForward));
@@ -144,20 +148,21 @@ public class CSGsegment
         end = e;
     }
     //returns a list of the segments of the path and then the segment on the other shape which ended the path, also ends when it reaches the start
-    public Tuple<List<CSGsegment>,CSGsegment> ridePathUntilIntersection(CSGshape shapeToRide,List<CSGsegment> externalSegments,bool isMovingForward,CSGsegment first)
+    public Tuple<List<CSGsegment>,CSGsegment> ridePathUntilIntersection(CSGshape shapeToIntersect,List<CSGsegment> externalSegments,bool isMovingForward,CSGsegment first,bool isStart=false)
     {
         var retr = new Tuple<List<CSGsegment>, CSGsegment>();
         var curr = this;
         var retrList = new List<CSGsegment>();
         retr.first = retrList;
-        while (curr != first)
+        while (curr != first || isStart)
         {
+            isStart = false;
             retrList.Add(curr);
             if (externalSegments.Contains(curr))//slow linear search
             {
                 externalSegments.Remove(curr);
             }
-            var intersection = curr.getClosestIntersectingSegment(shapeToRide, isMovingForward);
+            var intersection = curr.getClosestIntersectingSegment(shapeToIntersect, isMovingForward);
             if (intersection == null)
             {
                 curr = curr.next(isMovingForward);
@@ -167,7 +172,7 @@ public class CSGsegment
                 return retr; 
             }
         }
-        return null;
+        return retr;
     }
 
     ///not my code
