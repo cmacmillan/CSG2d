@@ -88,7 +88,7 @@ public class CSGshape {
         if (externalSegments.Count == 0)//other completely surrounds this
         {
             return retr;
-        } else if (externalSegments.Count == this.segments.Count)//this completely surrounds other
+        } else if (externalSegments.Count == this.segments.Count && other.segments.TrueForAll(a=>this.isPointInside(a.start)))//this completely surrounds other
         {
             throw new NotImplementedException();
         } else
@@ -104,9 +104,10 @@ public class CSGshape {
                 int counter = 0;
                 while (true)
                 {
-                    if (counter > 100)
+                    if (counter > 10000)//remove this?
                     {
-                        break;
+                        throw new Exception("Linerider exceeded 10000 steps");
+                        //break;
                     }
                     counter++;
                     var partialPath = curr.ridePathUntilIntersection(other, externalSegments, isMovingForward, first,isStart);
@@ -114,13 +115,20 @@ public class CSGshape {
                     {
                         newPoints.Add(i.getPoint(isMovingForward));
                     }
-                    isStart = false;
                     if (partialPath.second == null) { break; }
                     var intersectionPoint = partialPath.first[partialPath.first.Count - 1].intersectionPoint(partialPath.second);
-                    //now we must enter this shape, so test the two points
                     isMovingForward = this.getDirection(partialPath.second,true,intersectionPoint);
-                    var entrancePoint = partialPath.second.getPoint(!isMovingForward);//!isMovingForward so we get end instead of start
-                    curr = new CSGsegment(intersectionPoint+smallDelta*(entrancePoint-intersectionPoint).normalized,entrancePoint);
+                    isStart = false;
+                    //now we must enter this shape, so test the two points
+                    var exitPoint = partialPath.second.getPoint(!isMovingForward);//!isMovingForward so we get end instead of start
+                    var entrancePoint = intersectionPoint + smallDelta * (exitPoint - intersectionPoint).normalized;
+                    if (isMovingForward)
+                    {
+                        curr = new CSGsegment(entrancePoint,exitPoint);
+                    } else
+                    {
+                        curr = new CSGsegment(exitPoint,entrancePoint);
+                    }
                     curr.startSegment = partialPath.second.startSegment;
                     curr.endSegment = partialPath.second.endSegment;
                     ////////////////////////now inside this
@@ -130,10 +138,17 @@ public class CSGshape {
                         newPoints.Add(i.getPoint(isMovingForward));
                     }
                     intersectionPoint = partialPath.first[partialPath.first.Count - 1].intersectionPoint(partialPath.second);
-                    //now we gotta leave this shape
                     isMovingForward = other.getDirection(partialPath.second,false,intersectionPoint);
-                    entrancePoint = partialPath.second.getPoint(!isMovingForward);//!isMovingForward so we get end instead of start
-                    curr = new CSGsegment(intersectionPoint+smallDelta*(entrancePoint-intersectionPoint).normalized, entrancePoint);
+                    //now we gotta leave this shape
+                    exitPoint = partialPath.second.getPoint(!isMovingForward);//!isMovingForward so we get end instead of start
+                    entrancePoint = intersectionPoint + smallDelta * (exitPoint - intersectionPoint).normalized;
+                    if (isMovingForward)
+                    {
+                        curr = new CSGsegment(entrancePoint,exitPoint);
+                    } else
+                    {
+                        curr = new CSGsegment(exitPoint,entrancePoint);
+                    }
                     curr.startSegment = partialPath.second.startSegment;
                     curr.endSegment = partialPath.second.endSegment;
 
