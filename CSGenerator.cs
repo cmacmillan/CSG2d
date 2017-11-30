@@ -29,18 +29,22 @@ public class CSGenerator : MonoBehaviour {
             item.transform.position = pos;
             notShape.Add(pos);
         }
-        if (Input.GetKey(KeyCode.Space))
+        if (Input.GetKeyDown(KeyCode.Space))
         {
             var retr = new CSGshape(baseShape).not(new CSGshape(notShape));
             foreach(var i in objs)
             {
                 Destroy(i);
             }
+            baseShape.Clear();
             foreach(var i in retr[0].segments)
             {
                 var item = Instantiate(redX);
                 item.transform.position = i.start;
                 baseShape.Add(i.start);
+                /*item = Instantiate(redX);
+                item.transform.position = i.end;
+                baseShape.Add(i.end);*/
             }
         }
 	}

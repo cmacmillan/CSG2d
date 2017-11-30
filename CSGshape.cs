@@ -5,7 +5,7 @@ using System;
 using UnityEngine.Assertions;
 
 public class CSGshape {
-    private const float smallDelta = .0001f;
+    private const float smallDelta = .001f;
     private const float largePositive = 100;
     public List<CSGsegment> segments;
     public CSGshape(List<Vector2> points)
@@ -16,6 +16,7 @@ public class CSGshape {
         foreach(var i in points)
         {
             var currSegment = new CSGsegment(prev, i);
+            Debug.Log(currSegment.Letter);
             segments.Add(currSegment);
             if (lastSegment != null)
             {
@@ -32,6 +33,7 @@ public class CSGshape {
     private bool isPointInside(Vector2 point)
     {
         var collisionLine = new CSGsegment(point, new Vector2(largePositive, point.y));
+        CSGsegment.LetterCounter--;
         int counter = 0;
         foreach (var i in this.segments)
         {
@@ -58,8 +60,8 @@ public class CSGshape {
     //make sure to only wiggle a little bit, according to some small constant 
     public bool getDirection(CSGsegment seg,bool isEntering,Vector2 intersectionPoint)
     {
-        var startWiggle = intersectionPoint + smallDelta * seg.start;
-        var endWiggle = intersectionPoint + smallDelta * seg.end;
+        var startWiggle = intersectionPoint + smallDelta * (seg.start-intersectionPoint).normalized;
+        var endWiggle = intersectionPoint + smallDelta * (seg.end-intersectionPoint).normalized;
         var isStart = isPointInside(startWiggle);
         var isEnd = isPointInside(endWiggle);
         if (isStart && isEnd)
@@ -83,7 +85,6 @@ public class CSGshape {
         //start with a point on me thats not in the other shape
         List<CSGshape> retr = new List<CSGshape>();
         List<CSGsegment> externalSegments = getExternalSegments(other);
-        Assert.IsTrue(externalSegments.Count == 3);
         if (externalSegments.Count == 0)//other completely surrounds this
         {
             return retr;
@@ -100,19 +101,26 @@ public class CSGshape {
                 var curr = first;
                 var isStart = true;
                 externalSegments.RemoveAt(0);
+                int counter = 0;
                 while (true)
                 {
+                    if (counter > 100)
+                    {
+                        break;
+                    }
+                    counter++;
                     var partialPath = curr.ridePathUntilIntersection(other, externalSegments, isMovingForward, first,isStart);
-                    isStart = false;
                     foreach (var i in partialPath.first)
                     {
                         newPoints.Add(i.getPoint(isMovingForward));
                     }
+                    isStart = false;
                     if (partialPath.second == null) { break; }
                     var intersectionPoint = partialPath.first[partialPath.first.Count - 1].intersectionPoint(partialPath.second);
                     //now we must enter this shape, so test the two points
                     isMovingForward = this.getDirection(partialPath.second,true,intersectionPoint);
-                    curr = new CSGsegment(intersectionPoint, partialPath.second.getPoint(!isMovingForward));//!isMovingForward so we get end instead of start
+                    var entrancePoint = partialPath.second.getPoint(!isMovingForward);//!isMovingForward so we get end instead of start
+                    curr = new CSGsegment(intersectionPoint+smallDelta*(entrancePoint-intersectionPoint).normalized,entrancePoint);
                     curr.startSegment = partialPath.second.startSegment;
                     curr.endSegment = partialPath.second.endSegment;
                     ////////////////////////now inside this
@@ -124,7 +132,8 @@ public class CSGshape {
                     intersectionPoint = partialPath.first[partialPath.first.Count - 1].intersectionPoint(partialPath.second);
                     //now we gotta leave this shape
                     isMovingForward = other.getDirection(partialPath.second,false,intersectionPoint);
-                    curr = new CSGsegment(intersectionPoint, partialPath.second.getPoint(!isMovingForward));//!isMovingForward so we get end
+                    entrancePoint = partialPath.second.getPoint(!isMovingForward);//!isMovingForward so we get end instead of start
+                    curr = new CSGsegment(intersectionPoint+smallDelta*(entrancePoint-intersectionPoint).normalized, entrancePoint);
                     curr.startSegment = partialPath.second.startSegment;
                     curr.endSegment = partialPath.second.endSegment;
 
@@ -142,8 +151,12 @@ public class CSGsegment
     public Vector2 end;
     public CSGsegment startSegment;
     public CSGsegment endSegment;
+    public static char LetterCounter = 'a';
+    public char Letter;
     public CSGsegment(Vector2 s, Vector2 e)
     {
+        Letter = LetterCounter;
+        LetterCounter += (char)1;
         start = s;
         end = e;
     }
@@ -154,8 +167,10 @@ public class CSGsegment
         var curr = this;
         var retrList = new List<CSGsegment>();
         retr.first = retrList;
+        retr.second = null;
         while (curr != first || isStart)
         {
+            Debug.Log(curr.Letter);
             isStart = false;
             retrList.Add(curr);
             if (externalSegments.Contains(curr))//slow linear search
@@ -245,6 +260,13 @@ public class CSGsegment
     public float getYInter()
     {
         return start.y - getSlope() * start.x;
+    }
+    public string ToString
+    {
+        get
+        {
+            return "(" + this.start + "," +this.end+ ")";
+        }
     }
 
     public Vector2 intersectionPoint(CSGsegment other)//can optimize by removing redundant slope&yinter calculations
