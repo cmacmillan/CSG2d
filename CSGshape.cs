@@ -90,7 +90,45 @@ public class CSGshape {
             return retr;
         } else if (externalSegments.Count == this.segments.Count && other.segments.TrueForAll(a=>this.isPointInside(a.start)))//this completely surrounds other
         {
-            throw new NotImplementedException();
+            //throw new NotImplementedException();
+            float closestDist = float.PositiveInfinity;
+            CSGsegment closestItem = null;
+            CSGsegment closestInnerItem = null;
+            foreach (var i in this.segments)
+            {
+                foreach (var j in other.segments)
+                {
+                    var dist = (i.end-j.start).magnitude;
+                    if (dist < closestDist)
+                    {
+                        closestItem = i;
+                        closestInnerItem = j;
+                        closestDist = dist;
+                    }
+                }
+            }
+            var enter = new CSGsegment(closestItem.end,closestInnerItem.start);
+            var exit = new CSGsegment(closestInnerItem.start,closestItem.end);
+            var oldnext = closestItem.endSegment;
+            var oldinnernext = closestInnerItem.startSegment;
+            closestItem.endSegment = enter;
+            enter.endSegment = closestInnerItem;
+            oldinnernext.endSegment = exit;
+            exit.endSegment = oldnext;
+            //////////
+            enter.startSegment = closestItem;
+            closestInnerItem.startSegment = enter;
+            exit.startSegment = oldinnernext;
+            oldnext.startSegment = exit;
+            CSGsegment curr = enter;
+            List<Vector2> newPoints = new List<Vector2>();
+            do
+            {
+                newPoints.Add(curr.getPoint(true));
+                curr = curr.next(true);
+            } while (curr!=enter);
+            retr.Add(new CSGshape(newPoints));
+            return retr;
         } else
         {
             while (externalSegments.Count > 0)
