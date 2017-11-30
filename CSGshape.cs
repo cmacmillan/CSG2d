@@ -289,7 +289,7 @@ public class CSGsegment
         if (this.end.x == this.start.x)
         {
             return new Vector2(this.start.x,other.getSlope()*this.start.x+other.getYInter());
-        } else if (other.end.x == other.start.x)
+        } else if (other.end.x == other.start.x)    
         {
             return new Vector2(other.start.x,this.getSlope()*other.start.x+this.getYInter());
         }
