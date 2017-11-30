@@ -286,7 +286,16 @@ public class CSGsegment
 
     public Vector2 intersectionPoint(CSGsegment other)//can optimize by removing redundant slope&yinter calculations
     {
-        var x = (this.getYInter() - other.getYInter()) / (other.getSlope()-this.getSlope());
+        if (this.end.x == this.start.x)
+        {
+            return new Vector2(this.start.x,other.getSlope()*this.start.x+other.getYInter());
+        } else if (other.end.x == other.start.x)
+        {
+            return new Vector2(other.start.x,this.getSlope()*other.start.x+this.getYInter());
+        }
+        var num = this.getYInter() - other.getYInter();
+        var denom = other.getSlope() - this.getSlope();
+        var x = num / denom;
         return new Vector2(x,x*this.getSlope()+this.getYInter());
     }
 
