@@ -42,6 +42,7 @@ public class BallRain : MonoBehaviour {
         List<Tuple<GameObject,float>> g = new List<Tuple<GameObject,float>>();
         foreach (var i in balls)
         {
+            i.first.GetComponent<SpriteRenderer>().color = new Color(1, 1, 1,Mathf.Pow((i.second/timeToLive),.5f));
             i.second -= Time.deltaTime;
             if (i.second < 0)
             {

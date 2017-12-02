@@ -5,8 +5,8 @@ using System;
 using UnityEngine.Assertions;
 
 public class CSGshape {
-    private const float smallDelta = .001f;
-    private const float largePositive = 100;
+    private const float smallDelta = .01f;
+    private const float largePositive = 1000;
     public List<CSGsegment> segments;
     public CSGshape(List<Vector2> points)
     {
@@ -16,7 +16,7 @@ public class CSGshape {
         foreach(var i in points)
         {
             var currSegment = new CSGsegment(prev, i);
-            Debug.Log(currSegment.Letter);
+            //Debug.Log(currSegment.Letter);
             segments.Add(currSegment);
             if (lastSegment != null)
             {
@@ -142,9 +142,9 @@ public class CSGshape {
                 int counter = 0;
                 while (true)
                 {
-                    if (counter > 10000)//remove this?
+                    if (counter > 100)//remove this?
                     {
-                        throw new Exception("Linerider exceeded 10000 steps");
+                        throw new Exception("Linerider exceeded 100 steps");
                         //break;
                     }
                     counter++;
@@ -223,7 +223,7 @@ public class CSGsegment
         retr.second = null;
         while (curr != first || isStart)
         {
-            Debug.Log(curr.Letter);
+            //Debug.Log(curr.Letter);
             isStart = false;
             retrList.Add(curr);
             if (externalSegments.Contains(curr))//slow linear search
@@ -324,6 +324,12 @@ public class CSGsegment
 
     public Vector2 intersectionPoint(CSGsegment other)//can optimize by removing redundant slope&yinter calculations
     {
+        if (this.end.x == this.start.x && other.start.x == other.end.x)
+        {
+            throw new Exception("Vertical overlapping lines");
+            //Debug.Log("Vertical overlapping lines");
+            //return this.end;
+        }
         if (this.end.x == this.start.x)
         {
             return new Vector2(this.start.x,other.getSlope()*this.start.x+other.getYInter());
