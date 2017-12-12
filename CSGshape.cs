@@ -57,6 +57,16 @@ public class CSGshape {
         }
         return retr;
     }
+    public bool doesIntersect(CSGsegment seg)
+    {
+        foreach (var i in this.segments)
+        {
+            if (i.doesIntersect(seg)){
+                return true;
+            }
+        }
+        return false;
+    }
     //make sure to only wiggle a little bit, according to some small constant 
     public bool getDirection(CSGsegment seg,bool isEntering,Vector2 intersectionPoint)
     {
@@ -79,8 +89,28 @@ public class CSGshape {
             return !isEnd;
         }
     }
+    public bool isClockwise()
+    {
+        float sum = 0;
+        var i = segments[0];
+        do
+        {
+            sum += (i.end.x - i.start.x) * (i.end.y + i.start.y);
+            i = i.endSegment;
+        } while (i!=segments[0]);
+        return sum > 0;
+    }
+    public void antiRotate()//doesn't reorder segments in the list :(
+    {
+        foreach (var i in segments)
+        {
+            var temp = i.startSegment;
+            i.startSegment = i.endSegment;
+            i.endSegment = temp;
+        }
+    }
     //returns empty list if nothing is left
-    public List<CSGshape> not(CSGshape other)
+    public List<CSGshape> not(CSGshape other, bool isNot)
     {
         //start with a point on me thats not in the other shape
         List<CSGshape> retr = new List<CSGshape>();
@@ -88,17 +118,21 @@ public class CSGshape {
         if (externalSegments.Count == 0)//other completely surrounds this
         {
             return retr;
-        } else if (externalSegments.Count == this.segments.Count && other.segments.TrueForAll(a=>this.isPointInside(a.start)))//this completely surrounds other
+        } else if (externalSegments.Count == this.segments.Count && other.segments.TrueForAll(a => this.isPointInside(a.start)))//this completely surrounds other
         {
             //throw new NotImplementedException();
             float closestDist = float.PositiveInfinity;
             CSGsegment closestItem = null;
             CSGsegment closestInnerItem = null;
+            if (!other.isClockwise())
+            {
+                other.antiRotate();
+            }
             foreach (var i in this.segments)
             {
                 foreach (var j in other.segments)
                 {
-                    var dist = (i.end-j.start).magnitude;
+                    var dist = (i.end - j.start).magnitude;
                     if (dist < closestDist)
                     {
                         closestItem = i;
@@ -107,19 +141,19 @@ public class CSGshape {
                     }
                 }
             }
-            var enter = new CSGsegment(closestItem.end,closestInnerItem.start);
-            var exit = new CSGsegment(closestInnerItem.start,closestItem.end);
+            var enter = new CSGsegment(closestItem.end, closestInnerItem.start);
+            var exit = new CSGsegment(closestInnerItem.start, closestItem.end);
             var oldnext = closestItem.endSegment;
             var oldinnernext = closestInnerItem.startSegment;
+            oldnext.startSegment = exit;
             closestItem.endSegment = enter;
             enter.endSegment = closestInnerItem;
-            oldinnernext.endSegment = exit;
             exit.endSegment = oldnext;
-            //////////
+            oldinnernext.endSegment = exit;
             enter.startSegment = closestItem;
             closestInnerItem.startSegment = enter;
             exit.startSegment = oldinnernext;
-            oldnext.startSegment = exit;
+
             CSGsegment curr = enter;
             List<Vector2> newPoints = new List<Vector2>();
             do
@@ -155,7 +189,7 @@ public class CSGshape {
                     }
                     if (partialPath.second == null) { break; }
                     var intersectionPoint = partialPath.first[partialPath.first.Count - 1].intersectionPoint(partialPath.second);
-                    isMovingForward = this.getDirection(partialPath.second,true,intersectionPoint);
+                    isMovingForward = this.getDirection(partialPath.second,isNot,intersectionPoint);//toggle this to add instead of subtract
                     isStart = false;
                     //now we must enter this shape, so test the two points
                     var exitPoint = partialPath.second.getPoint(!isMovingForward);//!isMovingForward so we get end instead of start
@@ -212,6 +246,10 @@ public class CSGsegment
         LetterCounter += (char)1;
         start = s;
         end = e;
+    }
+    public float getAngle()//must always be between 0 and 360 or 0 and pi
+    {
+        return Mathf.Atan2(end.y-start.y,end.x-start.x);
     }
     //returns a list of the segments of the path and then the segment on the other shape which ended the path, also ends when it reaches the start
     public Tuple<List<CSGsegment>,CSGsegment> ridePathUntilIntersection(CSGshape shapeToIntersect,List<CSGsegment> externalSegments,bool isMovingForward,CSGsegment first,bool isStart=false)

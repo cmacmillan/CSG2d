@@ -1,26 +1,57 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
+using UnityEngine.Assertions;
 
 public class EraseClick : MonoBehaviour {
 
-    List<PolygonCollider2D> baseColliders;
-	// Use this for initialization
-	void Start () {
-        baseColliders = new List<PolygonCollider2D>(GetComponents<PolygonCollider2D>());
+    PolygonCollider2D baseCollider;
+    //MeshRenderer renderer;
+    Mesh m;
+    public Material mat;
+    //RenderTexture targetTexture;
+    // Use this for initialization
+    void Start() {
+        baseCollider = GetComponent<PolygonCollider2D>();
+        m = new Mesh();
 	}
+
+    //deleting the last piece of an element crashes
+    void Draw()
+    {
+        List<Vector3> points=new List<Vector3>();
+        List<int> triangles = new List<int>();
+        int sumSoFar = 0;
+        for (int i = 0;i<baseCollider.pathCount;i++)
+        {
+            var currPath = baseCollider.GetPath(i);
+            Triangulator t = new Triangulator(currPath);
+            triangles.AddRange(new List<int>(t.Triangulate().Select(a => a + sumSoFar)).ToArray());
+            sumSoFar += currPath.Count();
+            for (int c = 0; c < currPath.Count(); c++)
+            {
+                points.Add(currPath[c]);
+            }
+        }
+        m.vertices = points.ToArray();
+        //triangles.Reverse();
+        m.triangles = triangles.ToArray();
+        Graphics.DrawMesh(m,Vector3.zero,Quaternion.identity,mat,0);
+    }
 	
 	// Update is called once per frame
 	void Update () {
-	    if (Input.GetMouseButtonDown(0))
+        Draw();
+	    if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1))
         {
             try
             {
                 List<Vector2[]> newShapes = new List<Vector2[]>();
-                foreach (var coll in baseColliders)
+                for (int path=0;path<baseCollider.pathCount;path++)
                 {
-                    var b = new CSGshape(new List<Vector2>(coll.points));
+                    var b = new CSGshape(new List<Vector2>(baseCollider.GetPath(path)));
                     List<Vector2> square = new List<Vector2>();
                     Vector2 center = Camera.main.ScreenToWorldPoint(Input.mousePosition);
                     square.Add(center + new Vector2(1, 1));
@@ -28,7 +59,7 @@ public class EraseClick : MonoBehaviour {
                     square.Add(center + new Vector2(-1, -1));
                     square.Add(center + new Vector2(-1, 1));
                     {
-                        var retr = b.not(new CSGshape(square));
+                        var retr = b.not(new CSGshape(square),Input.GetMouseButtonDown(0));
                         foreach (var returnVal in retr)
                         {
                             var foo = new Vector2[returnVal.segments.Count];
@@ -43,24 +74,11 @@ public class EraseClick : MonoBehaviour {
                         }
                     }
                 }
-                if (baseColliders.Count < newShapes.Count)
-                {
-                    while (baseColliders.Count < newShapes.Count)
-                    {
-                        baseColliders.Add(gameObject.AddComponent<PolygonCollider2D>());
-                    }
-                } else if (baseColliders.Count > newShapes.Count)
-                {
-                    while (baseColliders.Count > newShapes.Count)
-                    {
-                        Destroy(baseColliders[0]);
-                        baseColliders.RemoveAt(0);
-                    }
-                }
+                baseCollider.pathCount = newShapes.Count();
                 int counter = 0;
                 foreach (var i in newShapes)
                 {
-                    baseColliders[counter].points = i;
+                    baseCollider.SetPath(counter, i);
                     counter++;
                 }
             }
@@ -71,42 +89,3 @@ public class EraseClick : MonoBehaviour {
         }
 	}
 }
-
-/*
- 	    if (Input.GetMouseButtonDown(0))
-        {
-            List<Vector2[]> nextColliders = new List<Vector2[]>();
-            foreach (var coll in baseColliders)
-            {
-                var b = new CSGshape(new List<Vector2>(coll.points));
-                var retr = b.not(new CSGshape(square));
-                foreach (var ret in retr)
-                {
-                    var foo = new Vector2[ret.segments.Count];
-                    nextColliders.Add(foo);
-                    int c = 0;
-                    foreach (var i in ret.segments)
-                    {
-                        foo[c] = i.start;
-                        c++;
-                    }
-                    //nextColliders.Add(foo)
-                    //coll.points = foo;
-                }
-            }
-            if (baseColliders.Count < nextColliders.Count)
-            {
-                Debug.Log("SHIIIIT");
-                for (int i = 0; i < nextColliders.Count - baseColliders.Count; i++)
-                {
-                    gameObject.AddComponent<PolygonCollider2D>();
-                }
-            }
-            baseColliders = new List<PolygonCollider2D>(GetComponents<PolygonCollider2D>());
-            int count = 0;
-            foreach (var i in nextColliders)
-            {
-                baseColliders[count].points = i;
-                count++;
-            }
-        }*/

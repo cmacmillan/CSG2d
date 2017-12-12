@@ -36,7 +36,7 @@ public class CSGenerator : MonoBehaviour {
         }
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            var retr = new CSGshape(baseShape).not(new CSGshape(notShape));
+            var retr = new CSGshape(baseShape).not(new CSGshape(notShape),false);
             foreach(var i in objs)
             {
                 Destroy(i);
