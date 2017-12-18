@@ -36,7 +36,8 @@ public class CSGenerator : MonoBehaviour {
         }
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            var retr = new CSGshape(baseShape).not(new CSGshape(notShape),false);
+			bool none;	
+            var retr = CSGshape.not(new CSGshape(baseShape),new CSGshape(notShape),false,out none);
             foreach(var i in objs)
             {
                 Destroy(i);
@@ -46,7 +47,7 @@ public class CSGenerator : MonoBehaviour {
             segments.Clear();
             foreach (var j in retr)
             {
-                foreach (var i in j.segments)
+                foreach (var i in j.externalHull.segments)
                 {
                     var item = Instantiate(redX);
                     objs.Add(item);

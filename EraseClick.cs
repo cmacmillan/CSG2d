@@ -38,9 +38,32 @@ public class EraseClick : MonoBehaviour {
         m.vertices = points.ToArray();
         //triangles.Reverse();
         m.triangles = triangles.ToArray();
+        m.RecalculateNormals();
         Graphics.DrawMesh(m,Vector3.zero,Quaternion.identity,mat,0);
     }
-	
+
+	Vector2[] collisionHullToVector2(CSGshape h)
+	{
+		var foo = new Vector2[h.segments.Count];
+		int c = 0;
+		foreach (var i in h.segments)
+		{
+			foo[c] = i.start;
+			c++;
+		}
+		return foo;
+	}
+
+	List<Vector2> getSquare(Vector2 center)
+	{
+		List<Vector2> square = new List<Vector2>();
+		square.Add(center + new Vector2(1, 1));
+		square.Add(center + new Vector2(1, -1));
+		square.Add(center + new Vector2(-1, -1));
+		square.Add(center + new Vector2(-1, 1));
+		return square;
+	}
+
 	// Update is called once per frame
 	void Update () {
         Draw();
@@ -48,32 +71,35 @@ public class EraseClick : MonoBehaviour {
         {
             try
             {
+				Vector2 center = Camera.main.ScreenToWorldPoint(Input.mousePosition);
                 List<Vector2[]> newShapes = new List<Vector2[]>();
+				//List<CollisionHull> shapesSoFar = new List<CollisionHull>();//#garbagelife
+				//Debug.Log("shapesofarleng:" + shapesSoFar.Count);
+				bool isShapesUsedUp = false;//prevents applying positive and to multiple 
                 for (int path=0;path<baseCollider.pathCount;path++)
                 {
-                    var b = new CSGshape(new List<Vector2>(baseCollider.GetPath(path)));
-                    List<Vector2> square = new List<Vector2>();
-                    Vector2 center = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-                    square.Add(center + new Vector2(1, 1));
-                    square.Add(center + new Vector2(1, -1));
-                    square.Add(center + new Vector2(-1, -1));
-                    square.Add(center + new Vector2(-1, 1));
-                    {
-                        var retr = b.not(new CSGshape(square),Input.GetMouseButtonDown(0));
-                        foreach (var returnVal in retr)
-                        {
-                            var foo = new Vector2[returnVal.segments.Count];
-                            int c = 0;
-                            foreach (var i in returnVal.segments)
-                            {
-                                foo[c] = i.start;
-                                c++;
-                            }
-                            newShapes.Add(foo);
-                            //coll.points = foo;
-                        }
-                    }
+					if (!isShapesUsedUp || Input.GetMouseButtonDown(0))
+					{
+						var b = new CSGshape(new List<Vector2>(baseCollider.GetPath(path)));
+						List<Vector2> square = getSquare(center);
+						{
+							var retr = CSGshape.not(b, new CSGshape(square), Input.GetMouseButtonDown(0), out isShapesUsedUp, null);
+							//retr = CSGshape.prune(shapesSoFar,retr);
+							//shapesSoFar.AddRange(retr);
+							foreach (var returnVal in retr)
+							{
+								newShapes.Add(collisionHullToVector2(returnVal.externalHull));
+							}
+						}
+					} else
+					{
+						newShapes.Add(baseCollider.GetPath(path));
+					}
                 }
+				if (!isShapesUsedUp && Input.GetMouseButtonDown(1))
+				{
+					newShapes.Add(getSquare(center).ToArray());
+				}
                 baseCollider.pathCount = newShapes.Count();
                 int counter = 0;
                 foreach (var i in newShapes)
